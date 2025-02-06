@@ -1,37 +1,74 @@
-# pkg-placeholder
+# Naive UI Cron
 
-[![npm version][npm-version-src]][npm-version-href]
-[![npm downloads][npm-downloads-src]][npm-downloads-href]
-[![bundle][bundle-src]][bundle-href]
-[![JSDocs][jsdocs-src]][jsdocs-href]
-[![License][license-src]][license-href]
+A cron expression editor component implemented with Naive UI.
 
-_description_
+[简体中文](./README.zh-CN.md) | English
 
-> **Note**:
-> Replace `pkg-placeholder`, `_description_` and `antfu` globally to use this template.
+## Features
 
-## Sponsors
+- 🎯 Full cron expression support (seconds, minutes, hours, day, month, week, year)
+- 🌍 Internationalization support (English, Chinese, Japanese)
+- 🎨 Beautiful UI powered by Naive UI
+- 📅 Next run time preview
+- 💡 Visual editing with instant preview
 
-<p align="center">
-  <a href="https://cdn.jsdelivr.net/gh/antfu/static/sponsors.svg">
-    <img src='https://cdn.jsdelivr.net/gh/antfu/static/sponsors.svg'/>
-  </a>
-</p>
+## Installation
+
+```bash
+# npm
+npm install naive-ui-cron
+
+# yarn
+yarn add naive-ui-cron
+
+# pnpm
+pnpm add naive-ui-cron
+```
+
+## Usage
+
+```vue
+<template>
+  <naive-cron v-model="cronExpression" :language="language" />
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import NaiveCron from 'naive-ui-cron'
+
+const cronExpression = ref('* * * * * ? *')
+const language = ref('en') // 'en' | 'zh' | 'ja'
+</script>
+```
+
+## Props
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| modelValue | string | '* * * * * ? *' | The cron expression value |
+| language | 'en' \| 'zh' \| 'ja' | 'en' | The display language |
+
+## Events
+
+| Name | Parameters | Description |
+| --- | --- | --- |
+| update:modelValue | (value: string) | Emitted when the cron expression changes |
+| change | (value: string) | Emitted when the cron expression changes |
+
+## Development
+
+```bash
+# Install dependencies
+pnpm install
+
+# Start development server
+cd playground
+pnpm dev
+
+# Build for production
+pnpm build
+```
 
 ## License
 
-[MIT](./LICENSE) License © [Anthony Fu](https://github.com/antfu)
-
-<!-- Badges -->
-
-[npm-version-src]: https://img.shields.io/npm/v/pkg-placeholder?style=flat&colorA=080f12&colorB=1fa669
-[npm-version-href]: https://npmjs.com/package/pkg-placeholder
-[npm-downloads-src]: https://img.shields.io/npm/dm/pkg-placeholder?style=flat&colorA=080f12&colorB=1fa669
-[npm-downloads-href]: https://npmjs.com/package/pkg-placeholder
-[bundle-src]: https://img.shields.io/bundlephobia/minzip/pkg-placeholder?style=flat&colorA=080f12&colorB=1fa669&label=minzip
-[bundle-href]: https://bundlephobia.com/result?p=pkg-placeholder
-[license-src]: https://img.shields.io/github/license/antfu/pkg-placeholder.svg?style=flat&colorA=080f12&colorB=1fa669
-[license-href]: https://github.com/antfu/pkg-placeholder/blob/main/LICENSE
-[jsdocs-src]: https://img.shields.io/badge/jsdocs-reference-080f12?style=flat&colorA=080f12&colorB=1fa669
-[jsdocs-href]: https://www.jsdocs.io/package/pkg-placeholder
+[MIT](./LICENSE) License © 2024 [Ray-D-Song](https://github.com/Ray-D-Song)

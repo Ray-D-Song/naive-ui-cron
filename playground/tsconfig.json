@@ -15,8 +15,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "jsxFactory": "h",
-    "jsxFragmentFactory": "Fragment",
+    "jsxImportSource": "vue",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -27,4 +26,9 @@
     "src/**/*.tsx",
     "src/**/*.vue"
   ],
+  "references": [
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }
