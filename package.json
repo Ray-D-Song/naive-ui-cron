@@ -1,7 +1,7 @@
 {
   "name": "naive-ui-cron",
   "type": "module",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "packageManager": "pnpm@9.15.4",
   "description": "Cron component implemented using naive UI.",
   "author": "Ray-D-Song <songraysmail@gmail.com>",
@@ -42,6 +42,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "cron-parser": "^4.9.0",
     "cronstrue": "^2.48.0",
     "dayjs": "^1.11.10"
   },
