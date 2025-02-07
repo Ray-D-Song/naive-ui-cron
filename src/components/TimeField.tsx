@@ -1,10 +1,21 @@
-import { defineComponent, ref, PropType, h, watch, computed } from 'vue'
-import { NRadioGroup, NRadio, NInputNumber, NSpace, NSelect, NCheckbox, NCheckboxGroup } from 'naive-ui'
+import { defineComponent, ref, PropType, h, computed, watch, nextTick } from 'vue'
+import { NRadioGroup, NRadio, NInputNumber, NSpace, NCheckbox, NCheckboxGroup, NButton } from 'naive-ui'
 import { Language, locales } from '../locales'
 
 export interface TimeFieldOption {
   label: string
   value: string | number
+}
+
+type TimeFieldType = 'every' | 'specific' | 'range' | 'cycle' | 'values'
+
+interface TimeFieldState {
+  type: TimeFieldType
+  specific: number
+  start: number
+  end: number
+  step: number
+  values: (string | number)[]
 }
 
 export const TimeField = defineComponent({
@@ -35,95 +46,196 @@ export const TimeField = defineComponent({
   setup(props, { emit }) {
     const currentLocale = computed(() => locales[props.language])
 
-    // 根据 value 初始化类型和值
-    const initializeValue = () => {
-      if (props.value === '*') {
-        type.value = 'every'
-      } else if (props.value.includes('/')) {
-        type.value = 'cycle'
-        const [start, step] = props.value.split('/')
-        cycleStart.value = parseInt(start, 10)
-        cycleStep.value = parseInt(step, 10)
-      } else if (props.value.includes('-')) {
-        type.value = 'range'
-        const [start, end] = props.value.split('-')
-        rangeStart.value = parseInt(start, 10)
-        rangeEnd.value = parseInt(end, 10)
-      } else if (props.value.includes(',')) {
-        type.value = 'values'
-        selectedValues.value = props.value.split(',').map(v => parseInt(v, 10))
-      } else {
-        type.value = 'specific'
-        specificValue.value = parseInt(props.value, 10)
-      }
-    }
-
-    const type = ref('every')
-    const specificValue = ref<number>(props.min)
-    const rangeStart = ref<number>(props.min)
-    const rangeEnd = ref<number>(props.max)
-    const cycleStart = ref<number>(props.min)
-    const cycleStep = ref<number>(1)
-    const selectedValues = ref<(string | number)[]>([])
-
-    // 初始化值
-    initializeValue()
-
-    // 监听 value 变化
-    watch(() => props.value, () => {
-      initializeValue()
+    // Internal state
+    const state = ref<TimeFieldState>({
+      type: 'every',
+      specific: props.min,
+      start: props.min,
+      end: props.max,
+      step: 1,
+      values: []
     })
 
-    const updateValue = () => {
-      let value = '*'
-      switch (type.value) {
-        case 'specific':
-          value = specificValue.value.toString().padStart(2, '0')
-          break
-        case 'range':
-          value = `${rangeStart.value.toString().padStart(2, '0')}-${rangeEnd.value.toString().padStart(2, '0')}`
-          break
-        case 'cycle':
-          value = `${cycleStart.value.toString().padStart(2, '0')}/${cycleStep.value}`
-          break
-        case 'values':
-          value = selectedValues.value.map(v => v.toString().padStart(2, '0')).join(',')
-          break
+    // Temporary state for storing unconfirmed values
+    const tempState = ref<{
+      start?: number
+      end?: number
+      step?: number
+    }>({})
+
+    // Internal update flag
+    const isInternalUpdate = ref(false)
+
+    // Computed values for input handling
+    const computedValues = computed(() => ({
+      start: tempState.value.start ?? state.value.start,
+      end: tempState.value.end ?? state.value.end,
+      step: tempState.value.step ?? state.value.step
+    }))
+
+    // Initialize state from external value
+    const initializeState = () => {
+      if (props.value === '*') {
+        state.value = {
+          type: 'every',
+          specific: props.min,
+          start: props.min,
+          end: props.max,
+          step: 1,
+          values: []
+        }
+        return
       }
-      emit('update:value', value)
+
+      if (props.value.includes('/')) {
+        const [start, step] = props.value.split('/')
+        state.value = {
+          type: 'cycle',
+          specific: props.min,
+          start: parseInt(start, 10),
+          end: props.max,
+          step: parseInt(step, 10),
+          values: []
+        }
+        return
+      }
+
+      if (props.value.includes('-')) {
+        const [start, end] = props.value.split('-')
+        state.value = {
+          type: 'range',
+          specific: props.min,
+          start: parseInt(start, 10),
+          end: parseInt(end, 10),
+          step: 1,
+          values: []
+        }
+        return
+      }
+
+      if (props.value.includes(',')) {
+        state.value = {
+          type: 'values',
+          specific: props.min,
+          start: props.min,
+          end: props.max,
+          step: 1,
+          values: props.value.split(',').map(v => parseInt(v, 10))
+        }
+        return
+      }
+
+      state.value = {
+        type: 'specific',
+        specific: parseInt(props.value, 10),
+        start: props.min,
+        end: props.max,
+        step: 1,
+        values: []
+      }
     }
 
-    const handleInputNumberUpdate = (ref: any, val: number | null) => {
-      if (val !== null) {
-        ref.value = val
-        updateValue()
+    // Watch external value changes
+    watch(() => props.value, () => {
+      if (!isInternalUpdate.value) {
+        initializeState()
       }
+    }, { immediate: true })
+
+    // Generate cron expression and emit
+    const syncToParent = () => {
+      let value: string
+      switch (state.value.type) {
+        case 'every':
+          value = '*'
+          break
+        case 'specific':
+          value = state.value.specific.toString().padStart(2, '0')
+          break
+        case 'range':
+          value = `${state.value.start.toString().padStart(2, '0')}-${state.value.end.toString().padStart(2, '0')}`
+          break
+        case 'cycle':
+          value = `${state.value.start.toString().padStart(2, '0')}/${state.value.step}`
+          break
+        case 'values':
+          value = state.value.values.length > 0
+            ? state.value.values.map(v => v.toString().padStart(2, '0')).join(',')
+            : '*'
+          break
+        default:
+          value = '*'
+      }
+
+      if (value !== props.value) {
+        isInternalUpdate.value = true
+        emit('update:value', value)
+        nextTick(() => {
+          isInternalUpdate.value = false
+        })
+      }
+    }
+
+    // Handle type change
+    const handleTypeChange = (type: TimeFieldType) => {
+      state.value.type = type
+      tempState.value = {}
+      if (type !== 'range' && type !== 'cycle') {
+        syncToParent()
+      }
+    }
+
+    // Handle confirm update
+    const handleConfirm = () => {
+      if (state.value.type === 'range') {
+        const start = tempState.value.start ?? state.value.start
+        const end = tempState.value.end ?? state.value.end
+
+        if (start <= end) {
+          state.value.start = start
+          state.value.end = end
+          syncToParent()
+        }
+      } else if (state.value.type === 'cycle') {
+        const start = tempState.value.start ?? state.value.start
+        const step = tempState.value.step ?? state.value.step
+
+        if (step > 0) {
+          state.value.start = start
+          state.value.step = step
+          syncToParent()
+        }
+      }
+
+      tempState.value = {}
+    }
+
+    // Handle value update
+    const handleValueUpdate = (key: 'specific' | 'start' | 'end' | 'step', val: number | null) => {
+      if (val === null || isNaN(val)) {
+        return
+      }
+
+      if ((state.value.type === 'range' || state.value.type === 'cycle') &&
+        (key === 'start' || key === 'end' || key === 'step')) {
+        tempState.value[key] = val
+        return
+      }
+
+      state.value[key] = val
+      syncToParent()
+    }
+
+    // Handle multiple values update
+    const handleValuesUpdate = (vals: (string | number)[]) => {
+      state.value.values = vals
+      syncToParent()
     }
 
     return () => h(NSpace, { vertical: true }, {
       default: () => h(NRadioGroup, {
-        value: type.value,
-        'onUpdate:value': (val: string) => {
-          type.value = val
-          // 切换类型时重置对应的值
-          switch (val) {
-            case 'specific':
-              specificValue.value = props.min
-              break
-            case 'range':
-              rangeStart.value = props.min
-              rangeEnd.value = props.max
-              break
-            case 'cycle':
-              cycleStart.value = props.min
-              cycleStep.value = 1
-              break
-            case 'values':
-              selectedValues.value = []
-              break
-          }
-          updateValue()
-        }
+        value: state.value.type,
+        'onUpdate:value': handleTypeChange
       }, {
         default: () => h(NSpace, { vertical: true }, {
           default: () => [
@@ -132,65 +244,75 @@ export const TimeField = defineComponent({
             h(NSpace, { align: 'center' }, {
               default: () => [
                 h(NRadio, { value: 'specific' }, { default: () => currentLocale.value.options.specificTime }),
-                type.value === 'specific' && h(NInputNumber, {
-                  value: specificValue.value,
+                state.value.type === 'specific' && h(NInputNumber, {
+                  value: state.value.specific,
                   min: props.min,
                   max: props.max,
                   size: 'small',
                   style: { width: '80px' },
-                  'onUpdate:value': (val: number | null) => handleInputNumberUpdate(specificValue, val)
+                  'onUpdate:value': (val: number | null) => handleValueUpdate('specific', val)
                 })
               ]
             }),
 
             h(NSpace, { align: 'center' }, {
               default: () => [
-                h(NRadio, { value: 'range' }, { default: () => currentLocale.value.options.cycleTime }),
-                type.value === 'range' && [
+                h(NRadio, { value: 'range' }, { default: () => currentLocale.value.options.rangeTime }),
+                state.value.type === 'range' && [
                   currentLocale.value.options.fromTime,
                   h(NInputNumber, {
-                    value: rangeStart.value,
+                    value: computedValues.value.start,
                     min: props.min,
                     max: props.max,
                     size: 'small',
                     style: { width: '80px' },
-                    'onUpdate:value': (val: number | null) => handleInputNumberUpdate(rangeStart, val)
+                    'onUpdate:value': (val: number | null) => handleValueUpdate('start', val)
                   }),
                   currentLocale.value.options.toTime,
                   h(NInputNumber, {
-                    value: rangeEnd.value,
+                    value: computedValues.value.end,
                     min: props.min,
                     max: props.max,
                     size: 'small',
                     style: { width: '80px' },
-                    'onUpdate:value': (val: number | null) => handleInputNumberUpdate(rangeEnd, val)
-                  })
+                    'onUpdate:value': (val: number | null) => handleValueUpdate('end', val)
+                  }),
+                  h(NButton, {
+                    size: 'small',
+                    type: 'primary',
+                    onClick: handleConfirm
+                  }, { default: () => currentLocale.value.options.confirm })
                 ]
               ]
             }),
 
             h(NSpace, { align: 'center' }, {
               default: () => [
-                h(NRadio, { value: 'cycle' }, { default: () => currentLocale.value.options.cycleTime }),
-                type.value === 'cycle' && [
+                h(NRadio, { value: 'cycle' }, { default: () => currentLocale.value.options.intervalTime }),
+                state.value.type === 'cycle' && [
                   currentLocale.value.options.startTime,
                   h(NInputNumber, {
-                    value: cycleStart.value,
+                    value: computedValues.value.start,
                     min: props.min,
                     max: props.max,
                     size: 'small',
                     style: { width: '80px' },
-                    'onUpdate:value': (val: number | null) => handleInputNumberUpdate(cycleStart, val)
+                    'onUpdate:value': (val: number | null) => handleValueUpdate('start', val)
                   }),
                   currentLocale.value.options.perTime,
                   h(NInputNumber, {
-                    value: cycleStep.value,
+                    value: computedValues.value.step,
                     min: 1,
                     size: 'small',
                     style: { width: '80px' },
-                    'onUpdate:value': (val: number | null) => handleInputNumberUpdate(cycleStep, val)
+                    'onUpdate:value': (val: number | null) => handleValueUpdate('step', val)
                   }),
-                  currentLocale.value.options.unit
+                  currentLocale.value.options.unit,
+                  h(NButton, {
+                    size: 'small',
+                    type: 'primary',
+                    onClick: handleConfirm
+                  }, { default: () => currentLocale.value.options.confirm })
                 ]
               ]
             }),
@@ -198,12 +320,9 @@ export const TimeField = defineComponent({
             props.options.length > 0 && h(NSpace, { align: 'center' }, {
               default: () => [
                 h(NRadio, { value: 'values' }, { default: () => currentLocale.value.options.multipleTime }),
-                type.value === 'values' && h(NCheckboxGroup, {
-                  value: selectedValues.value,
-                  'onUpdate:value': (val: (string | number)[]) => {
-                    selectedValues.value = val
-                    updateValue()
-                  }
+                state.value.type === 'values' && h(NCheckboxGroup, {
+                  value: state.value.values,
+                  'onUpdate:value': handleValuesUpdate
                 }, {
                   default: () => h(NSpace, { align: 'center' }, {
                     default: () => props.options.map(option =>

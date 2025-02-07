@@ -60,8 +60,8 @@ export const CronDisplay = defineComponent({
                   h('div', {
                     style: {
                       ...valueStyle,
-                      minWidth: '36px',
-                      maxWidth: '36px'
+                      minWidth: '50px',
+                      maxWidth: '50px'
                     }
                   }, values[field.key] || '')
                 ]

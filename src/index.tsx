@@ -82,7 +82,7 @@ const NaiveCron = defineComponent({
     return () => h(NCard, null, {
       default: () => h(NSpace, { vertical: true }, {
         default: () => [
-          h(CronDisplay, { 
+          h(CronDisplay, {
             value: cronValue.value,
             language: props.language
           }),
@@ -110,14 +110,14 @@ const NaiveCron = defineComponent({
           }),
           nextRunTimes.value.length > 0
             ? h(NTimeline, null, {
-                default: () => nextRunTimes.value.map((time, index) =>
-                  h(NTimelineItem, {
-                    key: index,
-                    type: index === 0 ? 'success' : 'default',
-                    title: time.time
-                  })
-                )
-              })
+              default: () => nextRunTimes.value.map((time, index) =>
+                h(NTimelineItem, {
+                  key: index,
+                  type: index === 0 ? 'success' : 'default',
+                  title: time.time
+                })
+              )
+            })
             : h('div', { style: { color: '#999' } }, locales[props.language].messages.invalidExpression)
         ]
       })

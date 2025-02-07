@@ -14,6 +14,8 @@ export interface LocaleConfig {
     everyTime: string
     specificTime: string
     cycleTime: string
+    rangeTime: string
+    intervalTime: string
     fromTime: string
     toTime: string
     startTime: string
@@ -22,6 +24,7 @@ export interface LocaleConfig {
     cronExpression: string
     nextRunTime: string
     unit: string
+    confirm: string
   }
   months: Array<{ label: string; value: number }>
   weeks: Array<{ label: string; value: number }>
@@ -52,6 +55,8 @@ export const locales: Record<Language, LocaleConfig> = {
       everyTime: 'Every time unit',
       specificTime: 'Specific time',
       cycleTime: 'Cycle',
+      rangeTime: 'Range',
+      intervalTime: 'Interval',
       fromTime: 'From',
       toTime: 'To',
       startTime: 'Start at',
@@ -59,7 +64,8 @@ export const locales: Record<Language, LocaleConfig> = {
       multipleTime: 'Multiple values',
       cronExpression: 'Cron Expression',
       nextRunTime: 'Next 5 run times',
-      unit: 'unit'
+      unit: 'unit',
+      confirm: 'Confirm'
     },
     months: [
       { label: 'January', value: 1 },
@@ -119,6 +125,11 @@ export const locales: Record<Language, LocaleConfig> = {
         label: 'Every Workday at 10 AM',
         value: '0 0 10 ? * 2-6 *',
         desc: 'Execute at 10:00:00 Monday through Friday'
+      },
+      {
+        label: 'Every Year at 1st January at Midnight',
+        value: '0 0 0 1 1 ? *',
+        desc: 'Execute at 00:00:00 on the 1st January every year'
       }
     ],
     messages: {
@@ -141,14 +152,17 @@ export const locales: Record<Language, LocaleConfig> = {
       everyTime: '每时间点',
       specificTime: '具体时间',
       cycleTime: '周期',
+      rangeTime: '范围',
+      intervalTime: '间隔',
       fromTime: '从',
       toTime: '至',
-      startTime: '从',
-      perTime: '每',
+      startTime: '开始于',
+      perTime: '间隔',
       multipleTime: '指定多个值',
       cronExpression: 'Cron 表达式',
       nextRunTime: '最近5次运行时间',
-      unit: '单位'
+      unit: '单位',
+      confirm: '确认'
     },
     months: [
       { label: '一月', value: 1 },
@@ -205,6 +219,11 @@ export const locales: Record<Language, LocaleConfig> = {
         desc: '每月 1 号的 0 点 0 分 0 秒执行'
       },
       {
+        label: '每年1月1日执行一次',
+        value: '0 0 0 1 1 ? *',
+        desc: '每年 1 月 1 日的 0 点 0 分 0 秒执行'
+      },
+      {
         label: '工作日每天上午10点执行一次',
         value: '0 0 10 ? * 2-6 *',
         desc: '周一至周五的上午 10 点 0 分 0 秒执行'
@@ -230,6 +249,8 @@ export const locales: Record<Language, LocaleConfig> = {
       everyTime: '毎時',
       specificTime: '指定時',
       cycleTime: '周期',
+      rangeTime: '範囲',
+      intervalTime: '間隔',
       fromTime: 'から',
       toTime: 'まで',
       startTime: 'から',
@@ -237,7 +258,8 @@ export const locales: Record<Language, LocaleConfig> = {
       multipleTime: '複数指定',
       cronExpression: 'Cron式',
       nextRunTime: '次回の5回の実行時間',
-      unit: '単位'
+      unit: '単位',
+      confirm: '確認'
     },
     months: [
       { label: '1月', value: 1 },
@@ -292,6 +314,11 @@ export const locales: Record<Language, LocaleConfig> = {
         label: '毎月1日の深夜に実行',
         value: '0 0 0 1 * ? *',
         desc: '毎月1日の0時0分0秒に実行します'
+      },
+      {
+        label: '毎年1月1日の深夜に実行',
+        value: '0 0 0 1 1 ? *',
+        desc: '毎年1月1日の0時0分0秒に実行します'
       },
       {
         label: '平日の午前10時に実行',

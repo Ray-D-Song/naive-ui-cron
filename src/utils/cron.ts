@@ -3,6 +3,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import 'dayjs/locale/ja'
 import { Language } from '../locales'
+import parser from 'cron-parser'
 
 interface CronNextTime {
   time: string
@@ -14,108 +15,154 @@ const cronLocaleMap: Record<Language, string> = {
   ja: 'ja'
 }
 
+// 添加缓存 Map
+const nextRunTimeCache = new Map<string, { times: CronNextTime[], timestamp: number }>();
+const CACHE_DURATION = 1000 * 60; // 缓存时间1分钟
+
+function isValidYear(yearExp: string): boolean {
+  if (yearExp === '*') return true;
+
+  // 处理步长值 2000/2 表示从2000年开始，每隔2年执行一次
+  if (yearExp.includes('/')) {
+    const [start, step] = yearExp.split('/').map(Number);
+    // 确保起始年份和步长都是有效的数字
+    if (isNaN(start) || isNaN(step)) return false;
+    if (start < 1970) return false; // 确保起始年份合理
+    if (step <= 0) return false; // 步长必须大于0
+    return true;
+  }
+
+  // 处理具体年份
+  if (!isNaN(Number(yearExp))) {
+    const year = Number(yearExp);
+    return year >= 1970; // 确保年份在合理范围内
+  }
+
+  // 处理年份列表 2003,2004,2005
+  if (yearExp.includes(',')) {
+    const years = yearExp.split(',').map(Number);
+    return years.every(y => !isNaN(y) && y >= 1970);
+  }
+
+  // 处理年份范围 2003-2010
+  if (yearExp.includes('-')) {
+    const [start, end] = yearExp.split('-').map(Number);
+    if (isNaN(start) || isNaN(end)) return false;
+    if (start < 1970 || end < 1970) return false;
+    return start <= end;
+  }
+
+  return false;
+}
+
+function matchYear(year: number, yearExp: string): boolean {
+  if (yearExp === '*') return true;
+
+  // 处理步长值 2000/2 表示从2000年开始，每隔2年执行一次
+  if (yearExp.includes('/')) {
+    const [start, step] = yearExp.split('/').map(Number);
+    if (year < start) return false;
+    return (year - start) % step === 0;
+  }
+
+  // 处理具体年份
+  if (!isNaN(Number(yearExp))) {
+    return year === Number(yearExp);
+  }
+
+  // 处理年份列表 2003,2004,2005
+  if (yearExp.includes(',')) {
+    return yearExp.split(',').map(Number).includes(year);
+  }
+
+  // 处理年份范围 2003-2010
+  if (yearExp.includes('-')) {
+    const [start, end] = yearExp.split('-').map(Number);
+    return year >= start && year <= end;
+  }
+
+  return false;
+}
+
+export function validateCronExpression(cronExpression: string): boolean {
+  try {
+    const parts = cronExpression.split(' ');
+    if (parts.length !== 7) {
+      return false;
+    }
+
+    const [second, minute, hour, dayOfMonth, month, dayOfWeek, year] = parts;
+
+    // 验证年份格式
+    if (!isValidYear(year)) {
+      return false;
+    }
+
+    // 验证其他字段
+    const sixFieldsCron = [second, minute, hour, dayOfMonth, month, dayOfWeek].join(' ');
+    parser.parseExpression(sixFieldsCron);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
 export function getNextRunTimes(cronExpression: string, count = 5, language: Language = 'en'): CronNextTime[] {
   try {
+    // 检查缓存
+    const cacheKey = `${cronExpression}_${count}_${language}`;
+    const now = Date.now();
+    const cached = nextRunTimeCache.get(cacheKey);
+
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      console.log('Using cached next run times');
+      return cached.times;
+    }
+
     const description = cronstrue.toString(cronExpression, { locale: cronLocaleMap[language] })
     console.log('Cron 表达式描述:', description)
 
-    const nextTimes: CronNextTime[] = []
-    let currentTime = dayjs()
+    // 处理 7 段 cron 表达式
+    const [second, minute, hour, dayOfMonth, month, dayOfWeek, year] = cronExpression.split(' ');
+    // 构建 6 段 cron 表达式（去掉年份）
+    const sixFieldsCron = [second, minute, hour, dayOfMonth, month, dayOfWeek].join(' ');
 
-    const [second, minute, hour, dayOfMonth, month, dayOfWeek, year] = cronExpression.split(' ')
+    // 使用 cron-parser 解析表达式
+    const interval = parser.parseExpression(sixFieldsCron, {
+      currentDate: new Date(),
+      iterator: true,
+      utc: true
+    });
 
-    for (let i = 0; i < count; i++) {
-      // 从当前时间开始，找到下一个匹配的时间
-      while (true) {
-        // 检查年份
-        if (year !== undefined && year !== '*' && !matchCronValue(currentTime.year(), year)) {
-          currentTime = currentTime.add(1, 'year').startOf('year')
-          continue
+    const nextTimes: CronNextTime[] = [];
+    let iterationCount = 0;
+    const MAX_ITERATIONS = 1000; // 防止无限循环
+
+    while (nextTimes.length < count && iterationCount < MAX_ITERATIONS) {
+      try {
+        const next = interval.next();
+        if (next.done) break;
+
+        const nextDate = next.value.toDate();
+        const nextYear = nextDate.getUTCFullYear();
+
+        // 使用新的年份匹配逻辑
+        if (matchYear(nextYear, year)) {
+          nextTimes.push({
+            time: dayjs(nextDate).format('YYYY-MM-DD HH:mm:ss')
+          });
         }
 
-        // 检查月份
-        if (!matchCronValue(currentTime.month() + 1, month)) {
-          currentTime = currentTime.add(1, 'month').startOf('month')
-          continue
-        }
-
-        // 检查日期（需要同时满足日期和星期的条件）
-        const dayMatches = dayOfMonth === '?' || matchCronValue(currentTime.date(), dayOfMonth)
-        const weekMatches = dayOfWeek === '?' || matchCronValue(currentTime.day(), dayOfWeek, true)
-        if (!dayMatches || !weekMatches) {
-          currentTime = currentTime.add(1, 'day').startOf('day')
-          continue
-        }
-
-        // 检查小时
-        if (!matchCronValue(currentTime.hour(), hour)) {
-          currentTime = currentTime.add(1, 'hour').startOf('hour')
-          continue
-        }
-
-        // 检查分钟
-        if (!matchCronValue(currentTime.minute(), minute)) {
-          currentTime = currentTime.add(1, 'minute').startOf('minute')
-          continue
-        }
-
-        // 检查秒
-        if (!matchCronValue(currentTime.second(), second)) {
-          // 如果秒不匹配，直接跳到下一个可能的秒
-          if (second === '*') {
-            currentTime = currentTime.add(1, 'second')
-          } else if (second.includes('/')) {
-            const [start, step] = second.split('/')
-            const stepNum = Number(step)
-            const currentSecond = currentTime.second()
-            const nextSecond = Math.ceil((currentSecond + 1) / stepNum) * stepNum
-            currentTime = currentTime.second(nextSecond)
-          } else if (second.includes('-')) {
-            const [start, end] = second.split('-').map(Number)
-            const currentSecond = currentTime.second()
-            if (currentSecond < start) {
-              currentTime = currentTime.second(start)
-            } else if (currentSecond > end) {
-              currentTime = currentTime.add(1, 'minute').second(start)
-            } else {
-              currentTime = currentTime.add(1, 'second')
-            }
-          } else if (second.includes(',')) {
-            const values = second.split(',').map(Number).sort((a, b) => a - b)
-            const currentSecond = currentTime.second()
-            const nextValue = values.find(v => v > currentSecond)
-            if (nextValue !== undefined) {
-              currentTime = currentTime.second(nextValue)
-            } else {
-              currentTime = currentTime.add(1, 'minute').second(values[0])
-            }
-          } else {
-            const targetSecond = Number(second)
-            if (currentTime.second() < targetSecond) {
-              currentTime = currentTime.second(targetSecond)
-            } else {
-              currentTime = currentTime.add(1, 'minute').second(targetSecond)
-            }
-          }
-          continue
-        }
-
-        // 所有条件都满足，找到了下一个时间点
-        nextTimes.push({
-          time: currentTime.format('YYYY-MM-DD HH:mm:ss')
-        })
-
-        // 为下一次迭代准备时间
-        if (second === '*') {
-          currentTime = currentTime.add(1, 'second')
-        } else {
-          currentTime = currentTime.add(1, 'minute').second(Number(second))
-        }
-        break
+        iterationCount++;
+      } catch (e) {
+        console.warn('无法获取更多执行时间:', e);
+        break;
       }
     }
 
-    return nextTimes
+    // 保存结果到缓存
+    nextRunTimeCache.set(cacheKey, { times: nextTimes, timestamp: now });
+    return nextTimes;
   } catch (error) {
     console.error('解析 cron 表达式错误:', error)
     return []
@@ -153,13 +200,4 @@ function matchCronValue(current: number, cronValue: string, isWeek = false): boo
 
   // 处理具体值
   return Number(cronValue) === current
-}
-
-export function validateCronExpression(cronExpression: string): boolean {
-  try {
-    cronstrue.toString(cronExpression)
-    return true
-  } catch (error) {
-    return false
-  }
 } 
