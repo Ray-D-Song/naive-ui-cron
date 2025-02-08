@@ -296,7 +296,7 @@ export const TimeField = defineComponent({
                     min: props.min,
                     max: props.max,
                     size: 'small',
-                    style: { width: '80px' },
+                    style: { width: '160px' },
                     'onUpdate:value': (val: number | null) => handleValueUpdate('start', val)
                   }),
                   currentLocale.value.options.perTime,
@@ -304,7 +304,7 @@ export const TimeField = defineComponent({
                     value: computedValues.value.step,
                     min: 1,
                     size: 'small',
-                    style: { width: '80px' },
+                    style: { width: '160px' },
                     'onUpdate:value': (val: number | null) => handleValueUpdate('step', val)
                   }),
                   currentLocale.value.options.unit,

@@ -1,5 +1,4 @@
 import { defineComponent, h, computed } from 'vue'
-import { NGrid, NGridItem } from 'naive-ui'
 import { Language, locales } from '../locales'
 
 export const CronDisplay = defineComponent({
@@ -47,27 +46,56 @@ export const CronDisplay = defineComponent({
       justifyContent: 'center'
     }
 
+    const getValueStyle = (index: number) => {
+      const baseStyle = { ...valueStyle }
+      // 为月份和周添加特殊样式
+      if (index === 4 || index === 5) {
+        return {
+          ...baseStyle,
+          minWidth: '80px',
+          maxWidth: '80px',
+          height: 'auto',
+          minHeight: '24px',
+          whiteSpace: 'normal',
+          wordBreak: 'break-all',
+          overflow: 'hidden'
+        }
+      }
+      return {
+        ...baseStyle,
+        minWidth: '50px',
+        maxWidth: '50px'
+      }
+    }
+
+    const fieldContainerStyle = {
+      display: 'inline-block',
+      marginRight: '12px'
+    }
+
     return () => {
       const values = props.value.split(' ')
 
       return h('div', { style: { display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '12px' } }, [
-        h('div', { style: { flex: '0 0 auto' } }, [
-          h(NGrid, { cols: 7, xGap: 3 }, {
-            default: () => fields.value.slice(0, 7).map(field =>
-              h(NGridItem, { key: field.key }, {
-                default: () => [
-                  h('div', { style: labelStyle }, field.label),
-                  h('div', {
-                    style: {
-                      ...valueStyle,
-                      minWidth: '50px',
-                      maxWidth: '50px'
-                    }
-                  }, values[field.key] || '')
-                ]
-              })
-            )
-          })
+        h('div', { 
+          style: { 
+            flex: '0 0 auto',
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '12px'
+          } 
+        }, [
+          ...fields.value.slice(0, 7).map(field =>
+            h('div', { 
+              key: field.key,
+              style: fieldContainerStyle
+            }, [
+              h('div', { style: labelStyle }, field.label),
+              h('div', {
+                style: getValueStyle(field.key)
+              }, values[field.key] || '')
+            ])
+          )
         ]),
         h('div', {
           style: {
