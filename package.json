@@ -1,7 +1,7 @@
 {
   "name": "naive-ui-cron",
   "type": "module",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "packageManager": "pnpm@9.15.4",
   "description": "Cron component implemented using naive UI.",
   "author": "Ray-D-Song <songraysmail@gmail.com>",
