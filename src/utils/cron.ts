@@ -130,8 +130,7 @@ export function getNextRunTimes(cronExpression: string, count = 5, language: Lan
     // 使用 cron-parser 解析表达式
     const interval = parser.parseExpression(sixFieldsCron, {
       currentDate: new Date(),
-      iterator: true,
-      utc: true
+      iterator: true
     });
 
     const nextTimes: CronNextTime[] = [];
@@ -144,7 +143,7 @@ export function getNextRunTimes(cronExpression: string, count = 5, language: Lan
         if (next.done) break;
 
         const nextDate = next.value.toDate();
-        const nextYear = nextDate.getUTCFullYear();
+        const nextYear = nextDate.getFullYear();
 
         // 使用新的年份匹配逻辑
         if (matchYear(nextYear, year)) {

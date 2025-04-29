@@ -24,6 +24,10 @@ const NaiveCron = defineComponent({
     language: {
       type: String as () => Language,
       default: 'en'
+    },
+    showNextTimes: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['update:modelValue', 'change'],
@@ -105,21 +109,23 @@ const NaiveCron = defineComponent({
               })
             }))
           }),
-          h(NDivider, { titlePlacement: 'left' }, {
-            default: () => locales[props.language].options.nextRunTime
-          }),
-          nextRunTimes.value.length > 0
-            ? h(NTimeline, null, {
-              default: () => nextRunTimes.value.map((time, index) =>
-                h(NTimelineItem, {
-                  key: index,
-                  type: index === 0 ? 'success' : 'default',
-                  title: time.time
-                })
-              )
-            })
-            : h('div', { style: { color: '#999' } }, locales[props.language].messages.invalidExpression)
-        ]
+          props.showNextTimes ? [
+            h(NDivider, { titlePlacement: 'left' }, {
+              default: () => locales[props.language].options.nextRunTime
+            }),
+            nextRunTimes.value.length > 0
+              ? h(NTimeline, null, {
+                default: () => nextRunTimes.value.map((time, index) =>
+                  h(NTimelineItem, {
+                    key: index,
+                    type: index === 0 ? 'success' : 'default',
+                    title: time.time
+                  })
+                )
+              })
+              : h('div', { style: { color: '#999' } }, locales[props.language].messages.invalidExpression)
+          ] : null
+        ].flat()
       })
     })
   }
